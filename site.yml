@@ -1,0 +1,10 @@
+---
+
+- hosts: app-servers
+  remote_user: root
+  become: yes
+  become_method: sudo
+
+  roles:
+    - phase_one
+    - phase_two

@@ -1,0 +1,62 @@
+---
+- name: Install latest stable release
+  yum: name=epel-release
+  when: "ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'"
+
+- name: Update respository
+  command: yum update -y
+  when: "ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'"
+
+- name: Update Java
+  yum: name=java-1.8.0-openjdk.x86_64
+
+- name: add group "tomcat"
+  group: name=tomcat
+
+- name: create tomcat dir
+  command: mkdir /opt/tomcat
+
+- name: add user "tomcat"
+  user: name=tomcat group=tomcat home=/usr/home/tomcat createhome=yes
+  become: True
+  become_method: sudo
+
+- name: Download Tomcat zip file
+  get_url: url=http://www-us.apache.org/dist/tomcat/tomcat-8/v8.0.33/bin/apache-tomcat-8.0.33.tar.gz
+  dest: /opt/tomcat/apache-tomcat-8.0.33.tar.gz
+
+- name: Extract zip file
+  command: chdir=/opt /bin/tar xvf /opt/apache-tomcat-8.0.33.tar.gz -C /opt/ creates=/opt/apache-tomcat-8.0.33
+
+- name: Symlink install directory
+  file: src=/opt/apache-tomcat-8.0.33 path=/opt/tomcat state=link
+
+- name: Change ownership of Tomcat installation
+  file: path=/opt/tomcat/ owner=tomcat group=tomcat state=directory recurse=yes
+
+- name: Setup tomcat service wrapper
+  copy: src=tomcat-initscript.sh dest=/etc/init.d/tomcat mode=0755
+
+- name: Setup tomcat service systemd
+  copy: src=tomcat.service dest=/etc/systemd/system/tomcat.service mode=0755
+
+- name: Install haveged
+  yum: name=haveged
+
+- name: Restart haveged
+  command: systemctl start haveged.service
+
+- name: Enable haveged
+  command: systemctl enable haveged.service
+
+- name: Restart tomcat
+  command: systemctl start tomcat.service
+
+- name: Enable tomcat
+  command: systemctl enable tomcat.service
+
+- name: Modify firewall settings
+  command: firewall-cmd --zone=public --permanent --add-port=8080/tcp
+
+- name: Reload firewall settings
+  command: firewall-cmd --reload
